@@ -586,9 +586,11 @@ uv run jam2song "$src" --structure highlight_reel   -o "$out/01-260320_2143_high
 
 These are noted for future iterations but are not currently implemented:
 
+- **Smart default output path**: when `-o` is not specified, write outputs next to the source file using the pattern `<source_stem>_<template>_<duration>_v<N>.wav` (and matching `.edl.json`), auto-incrementing `N` to avoid overwriting previous renders
+- **Analysis cache**: persist the analysis result (segments, features, distance matrix) to disk so re-running with a different structure or target duration skips the expensive analysis phase entirely
+- **Web UI template editor**: browser-based interface showing all candidate segments per role, letting you swap candidates and audition each segment in isolation before committing to a final render
 - Interactive mode (preview candidates, manually pick sections)
 - Demucs stem separation integration for smarter crossfades
 - Key detection and harmonic compatibility scoring between sections
 - BPM-matched time-stretching for sections at slightly different tempos
-- Web UI for visual waveform editing of the arrangement
 - MP3 output (was in original spec; removed pending pydub integration)
