@@ -48,5 +48,11 @@ desktop.ini
 # Logs
 *.log
 
-# Sample input/output (large audio files)
+# Audio files (large; keep out of repo)
+*.wav
+*.mp3
+*.flac
+*.aiff
+*.ogg
+*.edl.json
 sample_input/
