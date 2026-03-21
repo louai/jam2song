@@ -20,6 +20,35 @@ HOP_LENGTH = 512
 SR_ANALYSIS = 22050
 
 
+def analyze_cached(
+    path: str,
+    verbose: bool = False,
+    use_cache: bool = True,
+) -> AnalysisResult:
+    """analyze() with transparent disk caching. Falls back on any cache error."""
+    from pathlib import Path
+    from .cache import load_cache, save_cache
+
+    source = Path(path)
+    if use_cache:
+        cached = load_cache(source, SR_ANALYSIS)
+        if cached is not None:
+            if verbose:
+                print("  (loaded from cache)")
+            return cached
+
+    result = analyze(path, verbose=verbose)
+
+    if use_cache:
+        try:
+            save_cache(source, result)
+        except Exception as e:
+            if verbose:
+                print(f"  (cache write failed: {e})")
+
+    return result
+
+
 def analyze(path: str, verbose: bool = False) -> AnalysisResult:
     _bootstrap_ffmpeg()
     # --- Phase 1: Load ---
