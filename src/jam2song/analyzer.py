@@ -1,13 +1,27 @@
+import os
+
 import numpy as np
 import librosa
 
 from .models import AnalysisResult, AudioInfo
+
+
+def _bootstrap_ffmpeg() -> None:
+    """Add the imageio-ffmpeg bundled binary to PATH so librosa/audioread can find it."""
+    try:
+        import imageio_ffmpeg
+        ffmpeg_dir = os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe())
+        if ffmpeg_dir not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+    except Exception:
+        pass  # fall back to system ffmpeg if anything goes wrong
 
 HOP_LENGTH = 512
 SR_ANALYSIS = 22050
 
 
 def analyze(path: str, verbose: bool = False) -> AnalysisResult:
+    _bootstrap_ffmpeg()
     # --- Phase 1: Load ---
     # Render copy: original quality, original channels
     y_render, sr_render = librosa.load(path, sr=None, mono=False)

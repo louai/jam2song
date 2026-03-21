@@ -3,7 +3,7 @@ from scipy.spatial.distance import cdist
 
 from .models import Segment
 
-SLOPE_THRESHOLD = 0.05  # normalized RMS per normalized-time unit
+SLOPE_THRESHOLD = 0.02  # normalized RMS per normalized-time unit
 
 
 def classify(segments: list[Segment]) -> tuple[list[Segment], np.ndarray]:

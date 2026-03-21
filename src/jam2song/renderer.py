@@ -29,7 +29,14 @@ def render(plan: SongPlan, analysis: AnalysisResult, output_path: str) -> float:
     # Join with equal-power crossfades
     result = _join_with_crossfades(segments_audio, crossfade_samples)
 
-    # Apply fades
+    # Fade-in: if the song starts at the very beginning of the source recording
+    # it already has a natural start — applying a long fade-in would bury the
+    # drum fill or any content that kicks off the jam.  Use only a short
+    # click-prevention fade (50 ms) in that case.
+    first_source_start = plan.arranged_sections[0].segment.source_start
+    if first_source_start < 0.5:
+        fade_in_samples = min(fade_in_samples, int(0.05 * sr))
+
     result = _apply_fade_in(result, fade_in_samples)
     result = _apply_fade_out(result, fade_out_samples)
 

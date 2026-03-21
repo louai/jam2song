@@ -55,6 +55,8 @@ class ScoreBreakdown:
     energy_fit: float
     variety: float        # or similarity when similar_to is set
     duration_fit: float
+    temporal_fit: float = 1.0     # how close to expected temporal position (1.0 = perfect)
+    transition_score: float = 1.0  # energy moves in the right direction from previous role
 
 
 @dataclass
@@ -69,7 +71,7 @@ class ArrangedSection:
 
 @dataclass
 class RenderParams:
-    crossfade: float = 2.0
+    crossfade: float = 0.1
     fade_in: float = 3.0
     fade_out: float = 5.0
     output_path: str = ""

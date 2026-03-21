@@ -2,8 +2,9 @@
   "name": "verse_chorus",
   "description": "Traditional song structure with verses, choruses, and a bridge",
   "sections": [
-    {"role": "intro",    "energy": "low",     "relative_duration": 1},
-    {"role": "verse_1",  "energy": "mid",     "relative_duration": 2},
+    {"role": "intro",      "energy": "low",     "relative_duration": 1},
+    {"role": "intro_fill", "energy": "rising",  "relative_duration": 1},
+    {"role": "verse_1",    "energy": "mid",     "relative_duration": 2},
     {"role": "chorus_1", "energy": "high",    "relative_duration": 1.5},
     {"role": "verse_2",  "energy": "mid",     "relative_duration": 2},
     {"role": "chorus_2", "energy": "high",    "relative_duration": 1.5, "similar_to": "chorus_1"},

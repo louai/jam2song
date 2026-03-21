@@ -13,13 +13,13 @@ def test_load_loop_build_drop():
     s = load_structure("loop_build_drop")
     assert isinstance(s, Structure)
     assert s.name == "loop_build_drop"
-    assert len(s.sections) == 7
+    assert len(s.sections) == 8  # intro, intro_fill, build_1, drop_1, breakdown, build_2, drop_2, outro
 
 
 def test_load_verse_chorus():
     s = load_structure("verse_chorus")
     assert s.name == "verse_chorus"
-    assert len(s.sections) == 8
+    assert len(s.sections) == 9  # intro, intro_fill, verse_1, chorus_1, verse_2, chorus_2, bridge, chorus_3, outro
     # chorus_2 and chorus_3 reference chorus_1 (earlier)
     chorus_2 = next(sec for sec in s.sections if sec.role == "chorus_2")
     assert chorus_2.similar_to == "chorus_1"

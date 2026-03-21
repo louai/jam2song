@@ -135,14 +135,41 @@ def test_arrange_no_segment_reuse():
 
 
 def test_arrange_selects_low_energy_for_low_role():
+    # Use a non-intro/outro role so the energy filter is active
     segs = [
         _make_segment(0, energy_tier="high", mean_energy=0.9),
         _make_segment(1, energy_tier="low", mean_energy=0.1),
     ]
     dist = _make_dist_matrix(segs)
-    structure = _simple_structure([("intro", "low")])
+    structure = _simple_structure([("breakdown", "low")])
     plan = arrange(segs, dist, structure, _make_audio_info(), 30.0, _make_render_params())
     assert plan.arranged_sections[0].segment.energy_tier == "low"
+
+
+def test_arrange_intro_uses_earliest_segment():
+    """Intro is always anchored to the earliest part of the recording."""
+    segs = [
+        _make_segment(0, energy_tier="high", mean_energy=0.9, source_start=0.0),
+        _make_segment(1, energy_tier="low",  mean_energy=0.1, source_start=100.0),
+    ]
+    dist = _make_dist_matrix(segs)
+    structure = _simple_structure([("intro", "low")])
+    plan = arrange(segs, dist, structure, _make_audio_info(), 30.0, _make_render_params())
+    # Should pick seg 0 (earliest) regardless of its energy tier
+    assert plan.arranged_sections[0].segment.source_start == 0.0
+
+
+def test_arrange_outro_uses_latest_segment():
+    """Outro is always anchored to the latest part of the recording."""
+    segs = [
+        _make_segment(0, energy_tier="low", mean_energy=0.1, source_start=0.0),
+        _make_segment(1, energy_tier="high", mean_energy=0.9, source_start=500.0),
+    ]
+    dist = _make_dist_matrix(segs)
+    structure = _simple_structure([("outro", "low")])
+    plan = arrange(segs, dist, structure, _make_audio_info(), 30.0, _make_render_params())
+    # Should pick seg 1 (latest source_end) regardless of its energy tier
+    assert plan.arranged_sections[0].segment.source_start == pytest.approx(500.0)
 
 
 def test_arrange_duration_scaling():
@@ -213,7 +240,27 @@ def test_arrange_score_range():
     structure = _simple_structure([("intro", "low"), ("mid", "mid"), ("outro", "high")])
     plan = arrange(segs, dist, structure, _make_audio_info(200.0), 90.0, _make_render_params())
     for arr in plan.arranged_sections:
-        assert 0.0 <= arr.score <= 1.15  # slight margin for float precision
+        assert 0.0 <= arr.score <= 1.30  # base 0-1 + energy bonus 0.1 + positional up to 0.2
+
+
+def test_temporal_order_preferred():
+    """Segment near its expected temporal position should score higher than one far from it."""
+    # 2 mid-energy segments: seg0 at 10% through source, seg1 at 80%
+    # Single non-anchor role → expected_fraction = 0.5
+    # seg1 (80%) is farther from 0.5 than seg0 (10%) — wait, |0.1-0.5|=0.4, |0.8-0.5|=0.3
+    # So seg1 is actually closer. Let's use seg0 at 50% (perfect) and seg1 at 0%.
+    jam_duration = 200.0
+    segs = [
+        _make_segment(0, energy_tier="mid", mean_energy=0.5, source_start=100.0),  # 50%
+        _make_segment(1, energy_tier="mid", mean_energy=0.5, source_start=0.0),    # 0%
+    ]
+    dist = _make_dist_matrix(segs)
+    structure = _simple_structure([("verse", "mid")])
+    # Use short target (60s) → high temporal_weight → temporal position matters a lot
+    plan = arrange(segs, dist, structure, _make_audio_info(jam_duration), 60.0, _make_render_params())
+    # seg0 at 50% matches expected_fraction=0.5 perfectly → should win
+    assert plan.arranged_sections[0].segment.index == 0
+    assert plan.arranged_sections[0].score_breakdown.temporal_fit == pytest.approx(1.0)
 
 
 def test_arrange_actual_duration_capped_at_segment_length():
@@ -223,3 +270,31 @@ def test_arrange_actual_duration_capped_at_segment_length():
     structure = _simple_structure([("only", "mid")])
     plan = arrange([short_seg], dist, structure, _make_audio_info(), 60.0, _make_render_params())
     assert plan.arranged_sections[0].actual_duration == pytest.approx(5.0)
+
+
+def test_rising_prefers_mid_over_low_energy():
+    """A mid-tier rising segment should beat a low-tier rising segment for a 'rising' role."""
+    segs = [
+        _make_segment(0, energy_tier="low", trend="rising", mean_energy=0.1),
+        _make_segment(1, energy_tier="mid", trend="rising", mean_energy=0.5),
+    ]
+    dist = _make_dist_matrix(segs)
+    structure = _simple_structure([("build", "rising")])
+    plan = arrange(segs, dist, structure, _make_audio_info(), 210.0, _make_render_params())
+    assert plan.arranged_sections[0].segment.index == 1  # mid/rising wins over low/rising
+
+
+def test_transition_high_to_low_prefers_lower_energy():
+    """After a high-energy drop, a 'low' breakdown should prefer a genuinely lower-energy segment."""
+    # Two low-tier segments: one at energy 0.1 (genuinely low), one at 0.4 (borderline)
+    segs = [
+        _make_segment(0, energy_tier="high", mean_energy=0.8, source_start=0.0),   # drop
+        _make_segment(1, energy_tier="low",  mean_energy=0.1, source_start=50.0),  # quiet breakdown
+        _make_segment(2, energy_tier="low",  mean_energy=0.4, source_start=100.0), # louder breakdown
+    ]
+    dist = _make_dist_matrix(segs)
+    # drop → breakdown structure; high energy drop forces transition scoring on breakdown
+    structure = _simple_structure([("drop", "high"), ("breakdown", "low")])
+    plan = arrange(segs, dist, structure, _make_audio_info(200.0), 210.0, _make_render_params())
+    # breakdown should pick seg1 (0.1 energy) over seg2 (0.4 energy) — greater contrast
+    assert plan.arranged_sections[1].segment.index == 1

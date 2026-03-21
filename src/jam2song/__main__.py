@@ -33,8 +33,8 @@ def main() -> None:
         help="List available structure presets and exit",
     )
     parser.add_argument(
-        "--crossfade", type=float, default=2.0, metavar="SECS",
-        help="Crossfade duration between sections in seconds (default: 2.0)",
+        "--crossfade", type=float, default=0.1, metavar="SECS",
+        help="Crossfade duration between sections in seconds (default: 0.1)",
     )
     parser.add_argument(
         "--fade-in", type=float, default=3.0, metavar="SECS",
@@ -110,11 +110,23 @@ def main() -> None:
 
     segments, dist_matrix = classify(segments)
 
+    if args.verbose:
+        from collections import Counter
+        tiers = Counter(s.energy_tier for s in segments)
+        trends = Counter(s.trend for s in segments)
+        import numpy as _np
+        slopes = [s.energy_slope for s in segments]
+        print(f"  Energy tiers: {dict(tiers)}")
+        print(f"  Trends: {dict(trends)}")
+        print(f"  Slope range: {min(slopes):.4f} to {max(slopes):.4f}, "
+              f"mean={_np.mean(slopes):.4f}, std={_np.std(slopes):.4f}")
+
     print(f"Structure: {structure.name} (target: {info_dur(args.target_duration)})")
     print()
 
     plan = arrange(
-        segments, dist_matrix, structure, info, args.target_duration, render_params
+        segments, dist_matrix, structure, info, args.target_duration, render_params,
+        beat_times=analysis.beat_times,
     )
 
     # Build role → similar_to lookup for display
@@ -126,9 +138,9 @@ def main() -> None:
         e_m, e_s = divmod(seg.source_end, 60)
         sim_note = f"  (similar to {role_similar[arr.role]})" if role_similar[arr.role] else ""
         print(
-            f"  {arr.role:<12} →  {int(s_m)}:{s_s:05.2f}–{int(e_m)}:{e_s:05.2f}"
+            f"  {arr.role:<12} ->  {int(s_m)}:{s_s:05.2f}-{int(e_m)}:{e_s:05.2f}"
             f"  ({arr.actual_duration:.1f}s)"
-            f"  energy: {seg.energy_tier:<8}"
+            f"  {seg.energy_tier}/{seg.trend:<8}"
             f"  score: {arr.score:.2f}"
             f"{sim_note}"
         )

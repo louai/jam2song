@@ -104,16 +104,18 @@ def test_snap_to_beats_empty_peaks():
 
 def test_segment_mean_energy():
     """mean_energy should equal mean of RMS slice for that segment."""
-    n = 200
+    # Use a large enough signal so the peak clears the minimum section distance.
+    # At sensitivity=1.0, min_dist ≈ 8s → ~344 frames at 22050/512 Hz.
+    n = 2000
     rms = np.linspace(0.0, 1.0, n)
-    # One strong peak at frame 100 → two segments
+    # One strong peak at the midpoint → two segments
     novelty = np.zeros(n)
-    novelty[100] = 1.0
+    novelty[1000] = 1.0
     beat_frames = np.arange(0, n, 5, dtype=int)
     result = _make_result(novelty, rms=rms, beat_frames=beat_frames)
-    segs = segment(result, sensitivity=0.9)
+    segs = segment(result, sensitivity=1.0)
     assert len(segs) == 2
-    # First segment: frames 0 to ~100, mean should be around 0.25
+    # First segment spans frames 0..1000, rms ramps 0→~0.5, mean ≈ 0.25
     assert 0.0 <= segs[0].mean_energy <= 0.6
 
 
