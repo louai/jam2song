@@ -40,15 +40,15 @@ def render(plan: SongPlan, analysis: AnalysisResult, output_path: str) -> float:
     result = _apply_fade_in(result, fade_in_samples)
     result = _apply_fade_out(result, fade_out_samples)
 
-    # Write output
-    if output_path.lower().endswith(".mp3"):
+    # Write output — format determined by file extension
+    lower = output_path.lower()
+    if lower.endswith(".mp3"):
         _write_mp3(result, sr, output_path)
     else:
-        # soundfile expects (samples, channels) for multi-channel
-        if result.ndim == 2:
-            sf.write(output_path, result.T, sr, subtype="PCM_24")
-        else:
-            sf.write(output_path, result, sr, subtype="PCM_24")
+        # soundfile infers format from extension (.flac, .wav, .ogg, etc.)
+        # Use 24-bit for both FLAC and WAV for high-quality output
+        data = result.T if result.ndim == 2 else result
+        sf.write(output_path, data, sr, subtype="PCM_24")
 
     return result.shape[-1] / sr
 

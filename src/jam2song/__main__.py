@@ -21,7 +21,7 @@ def main() -> None:
     parser.add_argument("input", nargs="?", help="Path to input audio file")
     parser.add_argument(
         "-o", "--output",
-        help="Output file path. Cannot be used with multiple --structure flags.",
+        help="Output file path (.flac, .wav, .mp3). Cannot be used with multiple --structure flags.",
     )
     parser.add_argument(
         "--target-duration", type=float, default=210.0, metavar="SECS",
@@ -199,7 +199,7 @@ def _resolve_output_paths(
 
     version = 1
     while True:
-        wav = base_dir / f"{stem}_{slug}_{dur_str}_v{version:02d}.wav"
+        wav = base_dir / f"{stem}_{slug}_{dur_str}_v{version:02d}.flac"
         edl = wav.with_suffix("").with_suffix(".edl.json")
         if not wav.exists() and not edl.exists():
             break
