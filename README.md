@@ -35,8 +35,9 @@ positional:
 options:
   -o, --output OUTPUT       Output path (default: <input>_song.wav)
   --target-duration SECS    Target length in seconds (default: 210, range: 60–600)
-  --structure NAME_OR_PATH  Built-in preset name or path to custom JSON (default: loop_build_drop)
+  --structure NAME_OR_PATH  Built-in preset name or path to custom JSON (repeatable; default: loop_build_drop)
   --list-structures         Print available presets and exit
+  --no-cache                Skip reading and writing the analysis cache
   --crossfade SECS          Crossfade between sections (default: 0.1)
   --fade-in SECS            Fade-in at start (default: 3.0)
   --fade-out SECS           Fade-out at end (default: 5.0)
@@ -49,14 +50,17 @@ options:
 ### Examples
 
 ```bash
-# 4-minute verse/chorus arrangement
-uv run jam2song session.wav --target-duration 240 --structure verse_chorus
+# Render all three built-in structures in one pass (analysis runs once)
+uv run jam2song session.wav --structure loop_build_drop --structure verse_chorus --structure highlight_reel
 
-# Highlight reel with more detected sections
-uv run jam2song session.wav --structure highlight_reel --sensitivity 0.7
+# 4-minute verse/chorus with explicit output path
+uv run jam2song session.wav --target-duration 240 --structure verse_chorus -o my_song.wav
 
 # Use a custom structure template
 uv run jam2song session.wav --structure my_template.json
+
+# Force fresh analysis, skip cache
+uv run jam2song session.wav --no-cache
 
 # List available presets
 uv run jam2song --list-structures

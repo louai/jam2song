@@ -270,31 +270,35 @@ positional arguments:
 options:
   -o, --output OUTPUT       Output file path (default: input_stem_song.wav)
   --target-duration SECS    Target song duration in seconds (default: 210, range: 60–600)
-  --structure NAME_OR_PATH  Structure preset name or path to custom JSON file (default: loop_build_drop)
+  --structure NAME_OR_PATH  Structure preset name or path to custom JSON (repeatable; default: loop_build_drop)
   --list-structures         List available structure presets and exit
   --crossfade SECS          Crossfade duration between sections in seconds (default: 0.1)
   --fade-in SECS            Fade-in duration at start in seconds (default: 3.0)
   --fade-out SECS           Fade-out duration at end in seconds (default: 5.0)
   --sensitivity FLOAT       Segmentation sensitivity: lower = fewer, longer sections;
                             higher = more, shorter sections (default: 0.5, range: 0.1–1.0)
-  --edl EDL_PATH            Path to write the edit decision list JSON (default: alongside output file)
+  --edl EDL_PATH            Path to write the edit decision list JSON (single-structure only)
+  --no-cache                Skip reading and writing the analysis cache
   --verbose                 Verbose logging (show energy tier/trend distribution, slope range)
 ```
 
 ### Examples
 
 ```bash
-# Basic usage with defaults
+# Basic usage — outputs auto-named next to source with version number
 uv run jam2song my_jam.wav
 
-# Target a 4-minute song with the verse/chorus structure
-uv run jam2song my_jam.wav --target-duration 240 --structure verse_chorus
+# Render all three built-in structures in one pass (analysis runs once)
+uv run jam2song my_jam.wav --structure loop_build_drop --structure verse_chorus --structure highlight_reel
+
+# Explicit output path, 4-minute target
+uv run jam2song my_jam.wav --target-duration 240 --structure verse_chorus -o my_song.wav
 
 # Custom structure file
-uv run jam2song session.flac -o finished_track.wav --structure ~/my_template.json
+uv run jam2song session.flac --structure ~/my_template.json
 
-# More sections, longer crossfades
-uv run jam2song long_session.wav --crossfade 2.0 --sensitivity 0.7
+# Re-render without using cached analysis
+uv run jam2song my_jam.wav --no-cache
 
 # Just list what presets are available
 uv run jam2song --list-structures
@@ -586,8 +590,8 @@ uv run jam2song "$src" --structure highlight_reel   -o "$out/01-260320_2143_high
 
 These are noted for future iterations but are not currently implemented:
 
-- **Smart default output path**: when `-o` is not specified, write outputs next to the source file using the pattern `<source_stem>_<template>_<duration>_v<N>.wav` (and matching `.edl.json`), auto-incrementing `N` to avoid overwriting previous renders
-- **Analysis cache**: persist the analysis result (segments, features, distance matrix) to disk so re-running with a different structure or target duration skips the expensive analysis phase entirely
+- ~~**Smart default output path**~~ *(implemented)*
+- ~~**Analysis cache**~~ *(implemented)*
 - **Web UI template editor**: browser-based interface showing all candidate segments per role, letting you swap candidates and audition each segment in isolation before committing to a final render
 - Interactive mode (preview candidates, manually pick sections)
 - Demucs stem separation integration for smarter crossfades

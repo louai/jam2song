@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .analyzer import analyze
+from .analyzer import analyze_cached
 from .arranger import arrange
 from .classifier import classify
 from .models import RenderParams
@@ -19,14 +19,17 @@ def main() -> None:
         description="Convert a jam session recording into a structured song.",
     )
     parser.add_argument("input", nargs="?", help="Path to input audio file")
-    parser.add_argument("-o", "--output", help="Output file path (default: <input>_song.wav)")
+    parser.add_argument(
+        "-o", "--output",
+        help="Output file path. Cannot be used with multiple --structure flags.",
+    )
     parser.add_argument(
         "--target-duration", type=float, default=210.0, metavar="SECS",
         help="Target song duration in seconds (default: 210, range: 60-600)",
     )
     parser.add_argument(
-        "--structure", default="loop_build_drop", metavar="NAME_OR_PATH",
-        help="Structure preset name or path to custom JSON (default: loop_build_drop)",
+        "--structure", action="append", dest="structures", metavar="NAME_OR_PATH",
+        help="Structure preset name or path to custom JSON (repeatable, default: loop_build_drop)",
     )
     parser.add_argument(
         "--list-structures", action="store_true",
@@ -50,7 +53,11 @@ def main() -> None:
     )
     parser.add_argument(
         "--edl", metavar="EDL_PATH",
-        help="Path to write the edit decision list JSON",
+        help="Path to write the edit decision list JSON (single-structure only)",
+    )
+    parser.add_argument(
+        "--no-cache", action="store_true",
+        help="Skip reading and writing the analysis cache",
     )
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
@@ -76,33 +83,40 @@ def main() -> None:
     if not input_path.exists():
         parser.error(f"Input file not found: {args.input}")
 
-    output_path = args.output or str(
-        input_path.with_stem(input_path.stem + "_song").with_suffix(".wav")
-    )
-    edl_path = args.edl or str(Path(output_path).with_suffix("").with_suffix(".edl.json"))
+    # Apply default structure
+    if not args.structures:
+        args.structures = ["loop_build_drop"]
 
-    # Load structure template
-    structure = load_structure(args.structure)
+    # -o is ambiguous with multiple structures
+    if args.output and len(args.structures) > 1:
+        parser.error(
+            "-o/--output cannot be used with multiple --structure flags; "
+            "omit -o to use automatic output naming"
+        )
 
-    render_params = RenderParams(
-        crossfade=args.crossfade,
-        fade_in=args.fade_in,
-        fade_out=args.fade_out,
-        output_path=output_path,
-    )
+    # --edl is only meaningful for a single structure
+    if args.edl and len(args.structures) > 1:
+        parser.error("--edl cannot be used with multiple --structure flags")
 
-    # --- Pipeline ---
-    info_dur = _format_duration
+    # Load all structures up front so bad names fail before the slow analysis
+    structures = []
+    for name in args.structures:
+        try:
+            structures.append(load_structure(name))
+        except FileNotFoundError:
+            parser.error(f"Structure not found: {name}")
+
+    # --- Analysis (runs once for all structures) ---
     print(f"Loading: {input_path.name}")
 
-    analysis = analyze(str(input_path), verbose=args.verbose)
+    analysis = analyze_cached(
+        str(input_path), verbose=args.verbose, use_cache=not args.no_cache
+    )
     info = analysis.audio_info
     chan_str = "stereo" if info.channels == 2 else (
         "mono" if info.channels == 1 else f"{info.channels}ch"
     )
-    print(f"  ({info_dur(info.duration)}, {info.sample_rate} Hz, {chan_str})")
-
-    print("Analyzing audio features...")
+    print(f"  ({_format_duration(info.duration)}, {info.sample_rate} Hz, {chan_str})")
     print(f"Detected tempo: {info.tempo_bpm:.1f} BPM")
 
     segments = segment(analysis, sensitivity=args.sensitivity)
@@ -112,47 +126,86 @@ def main() -> None:
 
     if args.verbose:
         from collections import Counter
+        import numpy as _np
         tiers = Counter(s.energy_tier for s in segments)
         trends = Counter(s.trend for s in segments)
-        import numpy as _np
         slopes = [s.energy_slope for s in segments]
         print(f"  Energy tiers: {dict(tiers)}")
         print(f"  Trends: {dict(trends)}")
         print(f"  Slope range: {min(slopes):.4f} to {max(slopes):.4f}, "
               f"mean={_np.mean(slopes):.4f}, std={_np.std(slopes):.4f}")
 
-    print(f"Structure: {structure.name} (target: {info_dur(args.target_duration)})")
-    print()
-
-    plan = arrange(
-        segments, dist_matrix, structure, info, args.target_duration, render_params,
-        beat_times=analysis.beat_times,
-    )
-
-    # Build role → similar_to lookup for display
-    role_similar = {s.role: s.similar_to for s in structure.sections}
-
-    for arr in plan.arranged_sections:
-        seg = arr.segment
-        s_m, s_s = divmod(seg.source_start, 60)
-        e_m, e_s = divmod(seg.source_end, 60)
-        sim_note = f"  (similar to {role_similar[arr.role]})" if role_similar[arr.role] else ""
-        print(
-            f"  {arr.role:<12} ->  {int(s_m)}:{s_s:05.2f}-{int(e_m)}:{e_s:05.2f}"
-            f"  ({arr.actual_duration:.1f}s)"
-            f"  {seg.energy_tier}/{seg.trend:<8}"
-            f"  score: {arr.score:.2f}"
-            f"{sim_note}"
+    # --- Per-structure arrange + render loop ---
+    for structure in structures:
+        output_path, edl_path = _resolve_output_paths(
+            input_path, structure, args.output, args.target_duration, args.edl
         )
 
-    print()
-    print(f"Rendering with {args.crossfade}s crossfades...")
-    output_duration = render(plan, analysis, output_path)
+        render_params = RenderParams(
+            crossfade=args.crossfade,
+            fade_in=args.fade_in,
+            fade_out=args.fade_out,
+            output_path=output_path,
+        )
 
-    print(f"Output: {output_path} ({info_dur(output_duration)})")
+        print(f"\nStructure: {structure.name} (target: {_format_duration(args.target_duration)})")
 
-    _write_edl(plan, output_path, output_duration, edl_path)
-    print(f"EDL: {edl_path}")
+        plan = arrange(
+            segments, dist_matrix, structure, info, args.target_duration, render_params,
+            beat_times=analysis.beat_times,
+        )
+
+        role_similar = {s.role: s.similar_to for s in structure.sections}
+        for arr in plan.arranged_sections:
+            seg = arr.segment
+            s_m, s_s = divmod(seg.source_start, 60)
+            e_m, e_s = divmod(seg.source_end, 60)
+            sim_note = f"  (similar to {role_similar[arr.role]})" if role_similar[arr.role] else ""
+            print(
+                f"  {arr.role:<12} ->  {int(s_m)}:{s_s:05.2f}-{int(e_m)}:{e_s:05.2f}"
+                f"  ({arr.actual_duration:.1f}s)"
+                f"  {seg.energy_tier}/{seg.trend:<8}"
+                f"  score: {arr.score:.2f}"
+                f"{sim_note}"
+            )
+
+        print(f"\nRendering with {args.crossfade}s crossfades...")
+        output_duration = render(plan, analysis, output_path)
+
+        print(f"Output: {output_path} ({_format_duration(output_duration)})")
+        _write_edl(plan, output_path, output_duration, edl_path)
+        print(f"EDL:    {edl_path}")
+
+
+def _resolve_output_paths(
+    input_path: Path,
+    structure,
+    explicit_output: "str | None",
+    target_duration: float,
+    explicit_edl: "str | None" = None,
+) -> tuple[str, str]:
+    """Return (wav_path, edl_path). Auto-names with versioning when no explicit output given."""
+    if explicit_output:
+        wav = Path(explicit_output)
+        edl = Path(explicit_edl) if explicit_edl else wav.with_suffix("").with_suffix(".edl.json")
+        return str(wav), str(edl)
+
+    slug = structure.name.lower().replace(" ", "_")
+    total_secs = int(round(target_duration))
+    mins, secs = divmod(total_secs, 60)
+    dur_str = f"{mins}m{secs:02d}s"
+    base_dir = input_path.parent
+    stem = input_path.stem
+
+    version = 1
+    while True:
+        wav = base_dir / f"{stem}_{slug}_{dur_str}_v{version:02d}.wav"
+        edl = wav.with_suffix("").with_suffix(".edl.json")
+        if not wav.exists() and not edl.exists():
+            break
+        version += 1
+
+    return str(wav), str(edl)
 
 
 def _format_duration(seconds: float) -> str:

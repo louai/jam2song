@@ -56,3 +56,7 @@ desktop.ini
 *.ogg
 *.edl.json
 sample_input/
+
+# Analysis cache
+*.cache.npz
+*.cache.json

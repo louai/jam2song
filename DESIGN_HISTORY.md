@@ -115,3 +115,23 @@ sample_input/
         ├── 01-260320_2143_verse_chorus_3m42s_v6.wav
         └── 01-260320_2143_highlight_reel_2m57s_v6.wav
 ```
+
+---
+
+## 8. Analysis Cache, Multi-Structure Rendering, and Smart Output Naming
+
+> *"Create a cache file that contains all the analysis needed to generate new outputs so that subsequent generations are faster. The CLI should accept a list of templates to output to. Also do the todo about filenames when an explicit output path isn't given."*
+
+Three quality-of-life features motivated by the iterative acceptance test workflow — running all three templates after every change was slow because analysis (librosa beat tracking, RMS, spectral centroid, novelty curve) runs on the full recording every time.
+
+**Analysis cache** (`cache.py`): after the first run, analysis results (both audio copies + all feature arrays) are saved to `<source_stem>.cache.npz` and `<source_stem>.cache.json` next to the source file. On subsequent runs the cache is loaded instead of re-analysing, reducing a multi-second decode + feature extraction to a fast numpy load. The cache is invalidated by source file `mtime_ns` or `size` change. Writes are atomic (temp file + `os.replace()`). A `--no-cache` flag bypasses it entirely.
+
+**Multi-structure rendering**: `--structure` now uses `action="append"` so it can be repeated. Analysis and segmentation run once; the arrange + render loop runs once per structure. All three templates in a single invocation:
+
+```bash
+uv run jam2song session.wav --structure loop_build_drop --structure verse_chorus --structure highlight_reel
+```
+
+`-o` and `--edl` are blocked when multiple `--structure` flags are given — they're ambiguous with multiple outputs.
+
+**Smart default output naming**: when `-o` is omitted, outputs are written next to the source file as `<source_stem>_<template>_<duration>_v<NN>.wav`, auto-incrementing the version number to avoid overwriting previous renders. This makes the acceptance test workflow require no explicit path management — just run the tool and new versioned files appear alongside the source.
