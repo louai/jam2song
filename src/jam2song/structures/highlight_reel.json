@@ -1,0 +1,12 @@
+{
+  "name": "highlight_reel",
+  "description": "Alternating peaks and valleys — a greatest hits from the jam",
+  "sections": [
+    {"role": "moment_1", "energy": "high",    "relative_duration": 2},
+    {"role": "breath_1", "energy": "low",     "relative_duration": 1},
+    {"role": "moment_2", "energy": "high",    "relative_duration": 2},
+    {"role": "breath_2", "energy": "mid",     "relative_duration": 1},
+    {"role": "moment_3", "energy": "high",    "relative_duration": 2},
+    {"role": "cooldown", "energy": "falling", "relative_duration": 1}
+  ]
+}

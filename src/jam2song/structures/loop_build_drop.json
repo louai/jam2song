@@ -1,0 +1,13 @@
+{
+  "name": "loop_build_drop",
+  "description": "Classic electronic/loop music arc: build tension, release, repeat",
+  "sections": [
+    {"role": "intro",     "energy": "low",     "relative_duration": 1},
+    {"role": "build_1",   "energy": "rising",  "relative_duration": 1.5},
+    {"role": "drop_1",    "energy": "high",    "relative_duration": 2},
+    {"role": "breakdown", "energy": "low",     "relative_duration": 1},
+    {"role": "build_2",   "energy": "rising",  "relative_duration": 1.5},
+    {"role": "drop_2",    "energy": "high",    "relative_duration": 2, "similar_to": "drop_1"},
+    {"role": "outro",     "energy": "falling", "relative_duration": 1}
+  ]
+}

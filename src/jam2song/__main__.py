@@ -1,0 +1,198 @@
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from . import __version__
+from .analyzer import analyze
+from .arranger import arrange
+from .classifier import classify
+from .models import RenderParams
+from .renderer import render
+from .segmenter import segment
+from .structures import list_structures, load_structure
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        prog="jam2song",
+        description="Convert a jam session recording into a structured song.",
+    )
+    parser.add_argument("input", nargs="?", help="Path to input audio file")
+    parser.add_argument("-o", "--output", help="Output file path (default: <input>_song.wav)")
+    parser.add_argument(
+        "--target-duration", type=float, default=210.0, metavar="SECS",
+        help="Target song duration in seconds (default: 210, range: 60-600)",
+    )
+    parser.add_argument(
+        "--structure", default="loop_build_drop", metavar="NAME_OR_PATH",
+        help="Structure preset name or path to custom JSON (default: loop_build_drop)",
+    )
+    parser.add_argument(
+        "--list-structures", action="store_true",
+        help="List available structure presets and exit",
+    )
+    parser.add_argument(
+        "--crossfade", type=float, default=2.0, metavar="SECS",
+        help="Crossfade duration between sections in seconds (default: 2.0)",
+    )
+    parser.add_argument(
+        "--fade-in", type=float, default=3.0, metavar="SECS",
+        help="Fade-in duration at start in seconds (default: 3.0)",
+    )
+    parser.add_argument(
+        "--fade-out", type=float, default=5.0, metavar="SECS",
+        help="Fade-out duration at end in seconds (default: 5.0)",
+    )
+    parser.add_argument(
+        "--sensitivity", type=float, default=0.5,
+        help="Segmentation sensitivity 0.1-1.0 (default: 0.5)",
+    )
+    parser.add_argument(
+        "--edl", metavar="EDL_PATH",
+        help="Path to write the edit decision list JSON",
+    )
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
+    args = parser.parse_args()
+
+    # --list-structures exits immediately
+    if args.list_structures:
+        names = list_structures()
+        print("Available structure presets:")
+        for name in names:
+            print(f"  {name}")
+        sys.exit(0)
+
+    if not args.input:
+        parser.error("input file is required")
+
+    # Validate ranges
+    if not (60 <= args.target_duration <= 600):
+        parser.error("--target-duration must be between 60 and 600 seconds")
+    if not (0.1 <= args.sensitivity <= 1.0):
+        parser.error("--sensitivity must be between 0.1 and 1.0")
+
+    input_path = Path(args.input)
+    if not input_path.exists():
+        parser.error(f"Input file not found: {args.input}")
+
+    output_path = args.output or str(
+        input_path.with_stem(input_path.stem + "_song").with_suffix(".wav")
+    )
+    edl_path = args.edl or str(Path(output_path).with_suffix("").with_suffix(".edl.json"))
+
+    # Load structure template
+    structure = load_structure(args.structure)
+
+    render_params = RenderParams(
+        crossfade=args.crossfade,
+        fade_in=args.fade_in,
+        fade_out=args.fade_out,
+        output_path=output_path,
+    )
+
+    # --- Pipeline ---
+    info_dur = _format_duration
+    print(f"Loading: {input_path.name}")
+
+    analysis = analyze(str(input_path), verbose=args.verbose)
+    info = analysis.audio_info
+    chan_str = "stereo" if info.channels == 2 else (
+        "mono" if info.channels == 1 else f"{info.channels}ch"
+    )
+    print(f"  ({info_dur(info.duration)}, {info.sample_rate} Hz, {chan_str})")
+
+    print("Analyzing audio features...")
+    print(f"Detected tempo: {info.tempo_bpm:.1f} BPM")
+
+    segments = segment(analysis, sensitivity=args.sensitivity)
+    print(f"Segmentation: found {len(segments)} sections (sensitivity: {args.sensitivity})")
+
+    segments, dist_matrix = classify(segments)
+
+    print(f"Structure: {structure.name} (target: {info_dur(args.target_duration)})")
+    print()
+
+    plan = arrange(
+        segments, dist_matrix, structure, info, args.target_duration, render_params
+    )
+
+    # Build role → similar_to lookup for display
+    role_similar = {s.role: s.similar_to for s in structure.sections}
+
+    for arr in plan.arranged_sections:
+        seg = arr.segment
+        s_m, s_s = divmod(seg.source_start, 60)
+        e_m, e_s = divmod(seg.source_end, 60)
+        sim_note = f"  (similar to {role_similar[arr.role]})" if role_similar[arr.role] else ""
+        print(
+            f"  {arr.role:<12} →  {int(s_m)}:{s_s:05.2f}–{int(e_m)}:{e_s:05.2f}"
+            f"  ({arr.actual_duration:.1f}s)"
+            f"  energy: {seg.energy_tier:<8}"
+            f"  score: {arr.score:.2f}"
+            f"{sim_note}"
+        )
+
+    print()
+    print(f"Rendering with {args.crossfade}s crossfades...")
+    output_duration = render(plan, analysis, output_path)
+
+    print(f"Output: {output_path} ({info_dur(output_duration)})")
+
+    _write_edl(plan, output_path, output_duration, edl_path)
+    print(f"EDL: {edl_path}")
+
+
+def _format_duration(seconds: float) -> str:
+    m, s = divmod(seconds, 60)
+    return f"{int(m)}:{int(s):02d}"
+
+
+def _write_edl(plan, output_path: str, output_duration: float, edl_path: str) -> None:
+    sections_data = []
+    for arr in plan.arranged_sections:
+        seg = arr.segment
+        sections_data.append({
+            "role": arr.role,
+            "source_start": round(seg.source_start, 3),
+            "source_end": round(seg.source_end, 3),
+            "duration": round(arr.actual_duration, 3),
+            "energy": round(seg.mean_energy, 4),
+            "brightness": round(seg.mean_brightness, 4),
+            "score": round(arr.score, 4),
+            "score_breakdown": {
+                "energy_fit": round(arr.score_breakdown.energy_fit, 4),
+                "variety": round(arr.score_breakdown.variety, 4),
+                "duration_fit": round(arr.score_breakdown.duration_fit, 4),
+            },
+        })
+
+    edl = {
+        "version": __version__,
+        "input": {
+            "path": plan.audio_info.path,
+            "duration": round(plan.audio_info.duration, 3),
+            "sample_rate": plan.audio_info.sample_rate,
+            "channels": plan.audio_info.channels,
+            "detected_tempo_bpm": round(plan.audio_info.tempo_bpm, 2),
+        },
+        "structure": {
+            "name": plan.structure.name,
+            "target_duration": plan.target_duration,
+        },
+        "sections": sections_data,
+        "render": {
+            "crossfade": plan.render_params.crossfade,
+            "fade_in": plan.render_params.fade_in,
+            "fade_out": plan.render_params.fade_out,
+            "output_duration": round(output_duration, 3),
+            "output_path": output_path,
+        },
+    }
+
+    with open(edl_path, "w", encoding="utf-8") as f:
+        json.dump(edl, f, indent=2)
+
+
+if __name__ == "__main__":
+    main()
