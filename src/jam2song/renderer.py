@@ -8,7 +8,7 @@ import soundfile as sf
 from .models import AnalysisResult, SongPlan
 
 # Formats that need ffmpeg transcoding from a temp WAV
-_FFMPEG_FORMATS = {".opus", ".ogg", ".aac", ".m4a"}
+_FFMPEG_FORMATS = {".opus", ".ogg", ".aac", ".m4a", ".mp3"}
 
 
 def render(plan: SongPlan, analysis: AnalysisResult, output_path: str) -> float:
@@ -51,8 +51,6 @@ def render(plan: SongPlan, analysis: AnalysisResult, output_path: str) -> float:
     ext = os.path.splitext(output_path)[1].lower()
     if ext in _FFMPEG_FORMATS:
         _write_via_ffmpeg(result, sr, output_path, ext)
-    elif ext == ".mp3":
-        _write_mp3(result, sr, output_path)
     else:
         # soundfile handles .wav, .flac, .aiff, etc.
         data = result.T if result.ndim == 2 else result
@@ -134,6 +132,7 @@ def _write_via_ffmpeg(audio: np.ndarray, sr: int, path: str, ext: str) -> None:
         ".ogg":  ["-c:a", "libvorbis", "-q:a", "8"],
         ".aac":  ["-c:a", "aac", "-b:a", "256k"],
         ".m4a":  ["-c:a", "aac", "-b:a", "256k"],
+        ".mp3":  ["-c:a", "libmp3lame", "-q:a", "0"],
     }[ext]
 
     # Write a temp WAV, then transcode
