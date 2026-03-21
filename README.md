@@ -22,7 +22,7 @@ No other system dependencies — ffmpeg is bundled automatically via `imageio-ff
 uv run jam2song my_jam.wav
 ```
 
-This produces auto-named FLAC files next to the source (e.g. `my_jam_loop_build_drop_3m30s_v01.flac`) plus matching `.edl.json` files.
+This produces auto-named Opus files next to the source (e.g. `my_jam_loop_build_drop_3m30s_v01.opus`) plus matching `.edl.json` files.
 
 ### Options
 
@@ -33,7 +33,7 @@ positional:
   input                     Path to input audio (WAV, MP3, FLAC, OGG, AIFF, …)
 
 options:
-  -o, --output OUTPUT       Output path (.flac, .wav, .mp3; default: auto-named .flac next to source)
+  -o, --output OUTPUT       Output path (.opus, .flac, .wav, .mp3; default: auto-named .opus next to source)
   --target-duration SECS    Target length in seconds (default: 210, range: 60–600)
   --structure NAME_OR_PATH  Built-in preset name or path to custom JSON (repeatable; default: loop_build_drop)
   --list-structures         Print available presets and exit
@@ -140,7 +140,7 @@ Create a JSON file with this schema:
 
 ### Audio
 
-FLAC (24-bit lossless) at the original input sample rate and channel count. Use `-o output.wav` for uncompressed WAV or `-o output.mp3` for MP3 (requires pydub).
+Opus (192 kbps lossy) by default — high quality, compact, widely supported. Use `-o output.flac` for lossless, `-o output.wav` for uncompressed, or `-o output.mp3` for MP3.
 
 ### Edit Decision List (EDL)
 

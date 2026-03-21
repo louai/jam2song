@@ -249,8 +249,11 @@ For each non-anchor section in the template, in order:
 4. Apply a **fade-in** at the start (default 3 seconds, configurable via `--fade-in`). Suppressed to 50 ms if the first section begins at source position 0 (preserves drum fills at the top of the recording).
 5. Apply a **fade-out** at the end (default 5 seconds, configurable via `--fade-out`)
 6. Write output file at original input sample rate and channel count. Format is determined by file extension:
-   - **`.flac`** (default) — 24-bit FLAC, lossless compression. Typically 50–70% the size of WAV.
-   - **`.wav`** — 24-bit PCM, uncompressed.
+   - **`.opus`** (default) — Opus at 192 kbps via bundled ffmpeg. Perceptually transparent for music, ~1/10th the size of WAV.
+   - **`.flac`** — 24-bit FLAC, lossless. Via soundfile/libsndfile.
+   - **`.wav`** — 24-bit PCM, uncompressed. Via soundfile.
+   - **`.ogg`** — Vorbis at quality 8 via ffmpeg.
+   - **`.aac`** / **`.m4a`** — AAC at 256 kbps via ffmpeg.
    - **`.mp3`** — via pydub (requires optional `mp3` dependency).
 
 ---
@@ -271,7 +274,7 @@ positional arguments:
   input                     Path to input audio file (any format ffmpeg supports)
 
 options:
-  -o, --output OUTPUT       Output file path (.flac, .wav, .mp3; default: auto-named .flac next to source)
+  -o, --output OUTPUT       Output file path (.opus, .flac, .wav, .mp3; default: auto-named .opus next to source)
   --target-duration SECS    Target song duration in seconds (default: 210, range: 60–600)
   --structure NAME_OR_PATH  Structure preset name or path to custom JSON (repeatable; default: loop_build_drop)
   --list-structures         List available structure presets and exit
@@ -313,7 +316,7 @@ uv run jam2song --list-structures
 
 ### Audio File
 
-The primary output. FLAC (24-bit lossless) by default at original input sample rate and channel count. WAV or MP3 when the output path uses those extensions.
+The primary output. Opus (192 kbps) by default — high quality, compact, widely supported. FLAC, WAV, OGG, AAC, or MP3 when the output path uses those extensions.
 
 ### Edit Decision List (EDL)
 
@@ -551,7 +554,7 @@ sample_input/
 └── <source_stem>/
     ├── <source_stem>.wav                                  ← original input, name never changed
     └── output/
-        ├── <source_stem>_<template>_<duration>_v<N>.flac
+        ├── <source_stem>_<template>_<duration>_v<N>.opus
         └── <source_stem>_<template>_<duration>_v<N>.edl.json
 ```
 
@@ -582,9 +585,9 @@ sample_input/
 src="sample_input/01-260320_2143/01-260320_2143.wav"
 out="sample_input/01-260320_2143/output"
 
-uv run jam2song "$src" --structure loop_build_drop  -o "$out/01-260320_2143_loop_build_drop_3m30s_v7.flac"
-uv run jam2song "$src" --structure verse_chorus     -o "$out/01-260320_2143_verse_chorus_3m30s_v7.flac"
-uv run jam2song "$src" --structure highlight_reel   -o "$out/01-260320_2143_highlight_reel_3m30s_v7.flac"
+uv run jam2song "$src" --structure loop_build_drop  -o "$out/01-260320_2143_loop_build_drop_3m30s_v7.opus"
+uv run jam2song "$src" --structure verse_chorus     -o "$out/01-260320_2143_verse_chorus_3m30s_v7.opus"
+uv run jam2song "$src" --structure highlight_reel   -o "$out/01-260320_2143_highlight_reel_3m30s_v7.opus"
 ```
 
 ---

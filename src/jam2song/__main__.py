@@ -199,7 +199,7 @@ def _resolve_output_paths(
 
     version = 1
     while True:
-        wav = base_dir / f"{stem}_{slug}_{dur_str}_v{version:02d}.flac"
+        wav = base_dir / f"{stem}_{slug}_{dur_str}_v{version:02d}.opus"
         edl = wav.with_suffix("").with_suffix(".edl.json")
         if not wav.exists() and not edl.exists():
             break

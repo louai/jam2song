@@ -54,6 +54,9 @@ desktop.ini
 *.flac
 *.aiff
 *.ogg
+*.opus
+*.m4a
+*.aac
 *.edl.json
 sample_input/
 

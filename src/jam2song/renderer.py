@@ -1,7 +1,14 @@
+import os
+import subprocess
+import tempfile
+
 import numpy as np
 import soundfile as sf
 
 from .models import AnalysisResult, SongPlan
+
+# Formats that need ffmpeg transcoding from a temp WAV
+_FFMPEG_FORMATS = {".opus", ".ogg", ".aac", ".m4a"}
 
 
 def render(plan: SongPlan, analysis: AnalysisResult, output_path: str) -> float:
@@ -41,12 +48,13 @@ def render(plan: SongPlan, analysis: AnalysisResult, output_path: str) -> float:
     result = _apply_fade_out(result, fade_out_samples)
 
     # Write output — format determined by file extension
-    lower = output_path.lower()
-    if lower.endswith(".mp3"):
+    ext = os.path.splitext(output_path)[1].lower()
+    if ext in _FFMPEG_FORMATS:
+        _write_via_ffmpeg(result, sr, output_path, ext)
+    elif ext == ".mp3":
         _write_mp3(result, sr, output_path)
     else:
-        # soundfile infers format from extension (.flac, .wav, .ogg, etc.)
-        # Use 24-bit for both FLAC and WAV for high-quality output
+        # soundfile handles .wav, .flac, .aiff, etc.
         data = result.T if result.ndim == 2 else result
         sf.write(output_path, data, sr, subtype="PCM_24")
 
@@ -111,6 +119,38 @@ def _apply_fade_out(audio: np.ndarray, n: int) -> np.ndarray:
     audio = audio.copy()
     audio[..., -n:] *= curve
     return audio
+
+
+def _write_via_ffmpeg(audio: np.ndarray, sr: int, path: str, ext: str) -> None:
+    """Encode via the bundled ffmpeg for formats soundfile can't write (Opus, AAC, etc.)."""
+    from .analyzer import _bootstrap_ffmpeg
+    _bootstrap_ffmpeg()
+
+    n_channels = audio.shape[0] if audio.ndim == 2 else 1
+
+    # Codec and quality settings per format
+    codec_args: list[str] = {
+        ".opus": ["-c:a", "libopus", "-b:a", "192k"],
+        ".ogg":  ["-c:a", "libvorbis", "-q:a", "8"],
+        ".aac":  ["-c:a", "aac", "-b:a", "256k"],
+        ".m4a":  ["-c:a", "aac", "-b:a", "256k"],
+    }[ext]
+
+    # Write a temp WAV, then transcode
+    fd, tmp_wav = tempfile.mkstemp(suffix=".wav")
+    os.close(fd)
+    try:
+        data = audio.T if audio.ndim == 2 else audio
+        sf.write(tmp_wav, data, sr, subtype="PCM_24")
+        cmd = [
+            "ffmpeg", "-y", "-i", tmp_wav,
+            *codec_args,
+            path,
+        ]
+        subprocess.run(cmd, check=True, capture_output=True)
+    finally:
+        if os.path.exists(tmp_wav):
+            os.remove(tmp_wav)
 
 
 def _write_mp3(audio: np.ndarray, sr: int, path: str) -> None:
