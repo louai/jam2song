@@ -452,6 +452,37 @@ Simple alternating high/low energy. Good for showcasing the best moments.
 }
 ```
 
+### `condensed_jam`
+
+Extended jam arc for longer durations (~10 min). 18 sections give fine-grained control over energy progression: gradual warm-up, multiple peaks and valleys, an exploratory middle section, and a climactic finish.
+
+```json
+{
+  "name": "condensed_jam",
+  "description": "Extended jam arc — gradual warm-up, multiple peaks, exploratory middle, climactic finish",
+  "sections": [
+    {"role": "intro",       "energy": "low",     "relative_duration": 0.8},
+    {"role": "intro_fill",  "energy": "rising",  "relative_duration": 0.8},
+    {"role": "warmup",      "energy": "mid",     "relative_duration": 1.2},
+    {"role": "groove_1",    "energy": "mid",     "relative_duration": 1.5},
+    {"role": "build_1",     "energy": "rising",  "relative_duration": 1.0},
+    {"role": "peak_1",      "energy": "high",    "relative_duration": 1.5},
+    {"role": "comedown_1",  "energy": "falling", "relative_duration": 1.0},
+    {"role": "explore_1",   "energy": "mid",     "relative_duration": 1.2},
+    {"role": "explore_2",   "energy": "low",     "relative_duration": 1.0},
+    {"role": "groove_2",    "energy": "mid",     "relative_duration": 1.2, "similar_to": "groove_1"},
+    {"role": "build_2",     "energy": "rising",  "relative_duration": 1.2},
+    {"role": "peak_2",      "energy": "high",    "relative_duration": 1.5, "similar_to": "peak_1"},
+    {"role": "breakdown",   "energy": "low",     "relative_duration": 0.8},
+    {"role": "final_build", "energy": "rising",  "relative_duration": 1.2},
+    {"role": "climax",      "energy": "high",    "relative_duration": 2.0},
+    {"role": "comedown_2",  "energy": "falling", "relative_duration": 1.0},
+    {"role": "wind_down",   "energy": "low",     "relative_duration": 1.0},
+    {"role": "outro",       "energy": "falling", "relative_duration": 0.8}
+  ]
+}
+```
+
 ---
 
 ## Structure Template Validation

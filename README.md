@@ -112,6 +112,31 @@ Alternating peaks and valleys — a greatest-hits cut.
 | moment_3 | high |
 | cooldown | falling |
 
+### `condensed_jam`
+
+Extended jam arc for longer durations (~10 min). Gradual warm-up, multiple peaks, exploratory middle, climactic finish.
+
+| Role | Energy | Notes |
+|------|--------|-------|
+| intro | low | Anchored to source start |
+| intro_fill | rising | |
+| warmup | mid | Finding the groove |
+| groove_1 | mid | Settled groove |
+| build_1 | rising | First tension build |
+| peak_1 | high | First peak |
+| comedown_1 | falling | Pull back |
+| explore_1 | mid | Exploratory middle |
+| explore_2 | low | Quiet breathing room |
+| groove_2 | mid | Similar to groove_1 |
+| build_2 | rising | Second build |
+| peak_2 | high | Similar to peak_1 |
+| breakdown | low | Stripped back |
+| final_build | rising | Final tension build |
+| climax | high | Longest section, biggest peak |
+| comedown_2 | falling | Wind down from climax |
+| wind_down | low | Quiet close |
+| outro | falling | Anchored to source end |
+
 ## Custom Structure Templates
 
 Create a JSON file with this schema:

@@ -33,11 +33,26 @@ def test_load_highlight_reel():
     assert last.energy == "falling"
 
 
+def test_load_condensed_jam():
+    s = load_structure("condensed_jam")
+    assert s.name == "condensed_jam"
+    assert len(s.sections) == 18
+    # groove_2 references groove_1, peak_2 references peak_1
+    groove_2 = next(sec for sec in s.sections if sec.role == "groove_2")
+    assert groove_2.similar_to == "groove_1"
+    peak_2 = next(sec for sec in s.sections if sec.role == "peak_2")
+    assert peak_2.similar_to == "peak_1"
+    # climax has the largest relative_duration
+    climax = next(sec for sec in s.sections if sec.role == "climax")
+    assert climax.relative_duration == max(sec.relative_duration for sec in s.sections)
+
+
 def test_list_structures_contains_builtins():
     names = list_structures()
     assert "loop_build_drop" in names
     assert "verse_chorus" in names
     assert "highlight_reel" in names
+    assert "condensed_jam" in names
 
 
 # --- Custom JSON from path ---

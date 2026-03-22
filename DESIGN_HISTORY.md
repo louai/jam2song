@@ -134,4 +134,22 @@ uv run jam2song session.wav --structure loop_build_drop --structure verse_chorus
 
 `-o` and `--edl` are blocked when multiple `--structure` flags are given — they're ambiguous with multiple outputs.
 
-**Smart default output naming**: when `-o` is omitted, outputs are written next to the source file as `<source_stem>_<template>_<duration>_v<NN>.wav`, auto-incrementing the version number to avoid overwriting previous renders. This makes the acceptance test workflow require no explicit path management — just run the tool and new versioned files appear alongside the source.
+**Smart default output naming**: when `-o` is omitted, outputs are written next to the source file as `<source_stem>_<template>_<duration>_v<NN>.opus`, auto-incrementing the version number to avoid overwriting previous renders. This makes the acceptance test workflow require no explicit path management — just run the tool and new versioned files appear alongside the source.
+
+---
+
+## 9. `condensed_jam` Structure — Long-form Granular Energy Arc
+
+> *"I want a structure designed for a longer duration, around 10 minutes, that allows for a more granular progression of energy, similar to a condensed jam session."*
+
+The existing templates (6–9 sections) were designed for 3–5 minute songs. At a 10-minute target, each section would be 45–100 seconds — too coarse for a gradual energy arc. A jam session has a natural shape: tentative opening, finding a groove, building to a peak, pulling back to explore, building again bigger, hitting a climax, then winding down.
+
+**`condensed_jam` (18 sections)** mirrors this arc with fine-grained energy control:
+
+- **3 peaks** (peak_1, peak_2, climax) with increasing intensity — the climax gets the largest `relative_duration` (2.0) so it dominates the arrangement
+- **Exploratory middle** (explore_1 + explore_2) — a quiet, varied section between the two build/peak cycles that prevents the structure from feeling mechanical
+- **`similar_to` callbacks** — groove_2 references groove_1 and peak_2 references peak_1, creating thematic repetition across the two halves
+- **Gradual comedowns** via `"falling"` energy spec after each peak — the transition scoring ensures candidates actually drop in energy from the preceding peak
+- **Short intro/outro weights** (0.8) — at 10 minutes the body matters more than bookends
+
+At 600s target with 18 sections, each slot averages ~35 seconds — close to the natural segment lengths from phrase-aligned segmentation, giving good duration fit scores.
