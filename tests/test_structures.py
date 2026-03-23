@@ -47,12 +47,60 @@ def test_load_condensed_jam():
     assert climax.relative_duration == max(sec.relative_duration for sec in s.sections)
 
 
+def test_load_slow_burn():
+    s = load_structure("slow_burn")
+    assert s.name == "slow_burn"
+    assert len(s.sections) == 8
+    # Energy only goes up (no falling/low after a high) until outro
+    climax = next(sec for sec in s.sections if sec.role == "climax")
+    assert climax.similar_to == "peak"
+    assert climax.relative_duration == max(sec.relative_duration for sec in s.sections)
+
+
+def test_load_ambient_drift():
+    s = load_structure("ambient_drift")
+    assert s.name == "ambient_drift"
+    assert len(s.sections) == 8
+    # No high energy sections
+    energies = {sec.energy for sec in s.sections}
+    assert "high" not in energies
+    # similar_to callbacks
+    texture_2 = next(sec for sec in s.sections if sec.role == "texture_2")
+    assert texture_2.similar_to == "texture_1"
+    drift_2 = next(sec for sec in s.sections if sec.role == "drift_2")
+    assert drift_2.similar_to == "drift_1"
+
+
+def test_load_call_and_response():
+    s = load_structure("call_and_response")
+    assert s.name == "call_and_response"
+    assert len(s.sections) == 8
+    # Alternating pattern with callbacks
+    call_2 = next(sec for sec in s.sections if sec.role == "call_2")
+    assert call_2.similar_to == "call_1"
+    response_2 = next(sec for sec in s.sections if sec.role == "response_2")
+    assert response_2.similar_to == "response_1"
+
+
+def test_load_micro_edit():
+    s = load_structure("micro_edit")
+    assert s.name == "micro_edit"
+    assert len(s.sections) == 4
+    # No intro/outro anchoring — all energy-based roles
+    roles = [sec.role for sec in s.sections]
+    assert not any(r.startswith("intro") or r.startswith("outro") for r in roles)
+
+
 def test_list_structures_contains_builtins():
     names = list_structures()
     assert "loop_build_drop" in names
     assert "verse_chorus" in names
     assert "highlight_reel" in names
     assert "condensed_jam" in names
+    assert "slow_burn" in names
+    assert "ambient_drift" in names
+    assert "call_and_response" in names
+    assert "micro_edit" in names
 
 
 # --- Custom JSON from path ---

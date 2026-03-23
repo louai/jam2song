@@ -36,6 +36,7 @@ def arrange(
     arranged: list[ArrangedSection] = []
     used_indices: set[int] = set()
     role_to_arranged: dict[str, ArrangedSection] = {}
+    candidates_per_role: dict[str, list[tuple[int, float, ScoreBreakdown]]] = {}
 
     # Exclude near-silence segments from arrangement — these are typically dead
     # air at the start/end of a recording. 0.03 on the normalised 0-1 scale is
@@ -97,6 +98,9 @@ def arrange(
             prev_energy_spec=prev_spec.energy if prev_spec else None,
         )
         best_seg, score, breakdown = scored[0]
+        candidates_per_role[spec.role] = [
+            (seg.index, sc, bd) for seg, sc, bd in scored
+        ]
 
         # Intro and outro use their natural length to preserve the real opening/
         # closing of the recording.  Cap at 2× the target so very long silence-
@@ -126,6 +130,7 @@ def arrange(
         target_duration=target_duration,
         arranged_sections=arranged,
         render_params=render_params,
+        candidates_per_role=candidates_per_role,
     )
 
 

@@ -59,6 +59,10 @@ def main() -> None:
         "--no-cache", action="store_true",
         help="Skip reading and writing the analysis cache",
     )
+    parser.add_argument(
+        "--gui", action="store_true",
+        help="Start the web GUI for arrangement editing instead of rendering",
+    )
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
 
@@ -135,6 +139,10 @@ def main() -> None:
         print(f"  Slope range: {min(slopes):.4f} to {max(slopes):.4f}, "
               f"mean={_np.mean(slopes):.4f}, std={_np.std(slopes):.4f}")
 
+    # --gui only works with a single structure
+    if getattr(args, 'gui', False) and len(structures) > 1:
+        parser.error("--gui can only be used with a single --structure")
+
     # --- Per-structure arrange + render loop ---
     for structure in structures:
         output_path, edl_path = _resolve_output_paths(
@@ -169,6 +177,12 @@ def main() -> None:
                 f"{sim_note}"
             )
 
+        # --gui: launch the web editor instead of rendering
+        if getattr(args, 'gui', False):
+            from .gui.server import start_gui
+            start_gui(analysis, segments, dist_matrix, plan, output_path)
+            sys.exit(0)
+
         print(f"\nRendering with {args.crossfade}s crossfades...")
         output_duration = render(plan, analysis, output_path)
 
@@ -199,7 +213,7 @@ def _resolve_output_paths(
 
     version = 1
     while True:
-        wav = base_dir / f"{stem}_{slug}_{dur_str}_v{version:02d}.opus"
+        wav = base_dir / f"{stem}_{slug}_{dur_str}_v{version:02d}.m4a"
         edl = wav.with_suffix("").with_suffix(".edl.json")
         if not wav.exists() and not edl.exists():
             break

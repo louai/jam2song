@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jam2song — Arrangement Editor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+
+/* Header */
+header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #16213e;
+  border-bottom: 1px solid #0f3460;
+}
+header h1 { font-size: 1.1rem; color: #e94560; }
+header .info { font-size: 0.85rem; color: #999; }
+header .info span { color: #ccc; margin-right: 1rem; }
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1.5rem;
+  background: #1a1a2e;
+  border-bottom: 1px solid #333;
+  flex-wrap: wrap;
+}
+.toolbar button {
+  padding: 0.4rem 1rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #2a2a4a;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.toolbar button:hover { background: #3a3a5a; }
+.toolbar button.primary { background: #e94560; border-color: #e94560; color: #fff; }
+.toolbar button.primary:hover { background: #c73652; }
+.toolbar button:disabled { opacity: 0.4; cursor: default; }
+.toolbar .output-name {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #2a2a4a;
+  color: #e0e0e0;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+.toolbar label { font-size: 0.8rem; color: #999; }
+
+/* Timeline */
+.timeline-container {
+  padding: 1rem 1.5rem;
+  overflow-x: auto;
+}
+.timeline {
+  display: flex;
+  gap: 3px;
+  min-height: 100px;
+  align-items: stretch;
+}
+.section-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 60px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: outline 0.15s, transform 0.1s;
+  outline: 2px solid transparent;
+  position: relative;
+}
+.section-block:hover { transform: translateY(-2px); }
+.section-block.selected { outline: 2px solid #fff; }
+.section-block.drag-over { outline: 2px dashed #e94560; }
+
+.section-block .label {
+  padding: 4px 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.section-block .waveform-mini {
+  flex: 1;
+  min-height: 50px;
+}
+.section-block .meta {
+  padding: 3px 6px;
+  font-size: 0.65rem;
+  text-align: center;
+  color: rgba(255,255,255,0.7);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Energy colors */
+.energy-low    { background: #1b3a5c; }
+.energy-mid    { background: #1b4d3e; }
+.energy-high   { background: #5c1b2a; }
+.energy-rising { background: #5c3a1b; }
+.energy-falling{ background: #3a1b5c; }
+
+/* Detail panel */
+.detail-panel {
+  margin: 0 1.5rem 1rem;
+  padding: 1rem;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0f3460;
+  display: none;
+}
+.detail-panel.visible { display: block; }
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.detail-header h2 { font-size: 1rem; color: #e94560; }
+.detail-header .score-badge {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  background: #2a2a4a;
+  border-radius: 12px;
+}
+
+.detail-waveform {
+  height: 80px;
+  background: #111;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+  position: relative;
+}
+
+.detail-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.detail-controls button {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #2a2a4a;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.detail-controls button:hover { background: #3a3a5a; }
+.detail-controls label { font-size: 0.8rem; color: #999; }
+.detail-controls input[type="number"] {
+  width: 80px;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #2a2a4a;
+  color: #e0e0e0;
+  font-family: monospace;
+}
+
+/* Score breakdown tooltip */
+.breakdown-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 0.5rem;
+  font-size: 0.75rem;
+}
+.breakdown-grid .lbl { color: #999; }
+.breakdown-grid .val { color: #ccc; }
+
+/* Candidates table */
+.candidates-title { font-size: 0.85rem; color: #999; margin-bottom: 0.5rem; }
+.candidate-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.candidate-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  transition: background 0.1s;
+}
+.candidate-row:hover { background: #2a2a4a; }
+.candidate-row.current { background: #1b4d3e; border: 1px solid #2a7a5a; }
+.candidate-row .rank { color: #666; width: 2ch; text-align: right; }
+.candidate-row .seg-info { flex: 1; }
+.candidate-row .seg-info .tier-trend { color: #999; }
+.candidate-row .cscore { color: #e94560; width: 4ch; text-align: right; }
+.candidate-row button {
+  padding: 2px 8px;
+  border: 1px solid #444;
+  border-radius: 3px;
+  background: #2a2a4a;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.candidate-row button:hover { background: #3a3a5a; }
+.candidate-row button.use-btn { border-color: #e94560; }
+.candidate-row button.use-btn:hover { background: #e94560; color: #fff; }
+
+/* Playback progress indicator on timeline */
+.play-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 100%;
+  background: #e94560;
+  pointer-events: none;
+  display: none;
+  z-index: 10;
+}
+
+/* Status bar */
+.status-bar {
+  padding: 0.4rem 1.5rem;
+  font-size: 0.75rem;
+  color: #666;
+  border-top: 1px solid #333;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a1a2e;
+}
+
+/* Drag ghost */
+.section-block[draggable="true"] { cursor: grab; }
+.section-block.dragging { opacity: 0.4; }
+
+/* Loading */
+.loading { text-align: center; padding: 4rem; color: #666; font-size: 1.2rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>jam2song</h1>
+  <div class="info" id="header-info">Loading...</div>
+</header>
+
+<div class="toolbar">
+  <button id="btn-play-all" title="Play rendered output">&#9654; Play All</button>
+  <button id="btn-stop" title="Stop playback">&#9632; Stop</button>
+  <label>Output:</label>
+  <input type="text" class="output-name" id="output-name" />
+  <button class="primary" id="btn-render">Render</button>
+  <span style="border-left:1px solid #444;height:1.2rem"></span>
+  <label class="toolbar-file-label">
+    <button id="btn-load-edl">Load EDL</button>
+    <input type="file" id="edl-file-input" accept=".json" style="display:none" />
+  </label>
+</div>
+
+<div class="timeline-container">
+  <div class="timeline" id="timeline"></div>
+</div>
+
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-header">
+    <h2 id="detail-role">—</h2>
+    <span class="score-badge" id="detail-score">—</span>
+    <div class="breakdown-grid" id="detail-breakdown"></div>
+  </div>
+  <div class="detail-waveform" id="detail-waveform"></div>
+  <div class="detail-controls">
+    <button id="btn-play-section">&#9654; Play</button>
+    <button id="btn-pause-section">&#10074;&#10074;</button>
+    <label>Duration:
+      <input type="number" id="detail-duration" step="0.1" min="0.5" />
+    </label>
+    <span id="detail-dur-info" style="font-size:0.75rem;color:#666"></span>
+  </div>
+  <div class="candidates-title">Alternative candidates</div>
+  <div class="candidate-list" id="candidate-list"></div>
+</div>
+
+<div class="status-bar" id="status-bar">Ready</div>
+
+<script>
+// ── State ──
+let state = null;
+let selectedIdx = null;
+let audioCtx = null;
+let currentSource = null;
+let renderedAudio = null;
+let renderedBuffer = null;
+let renderedStartTime = 0;
+let renderedPlaying = false;
+let playAllAnimFrame = null;
+
+const $ = id => document.getElementById(id);
+
+// ── Init ──
+async function init() {
+  try {
+    const resp = await fetch('/api/state');
+    state = await resp.json();
+    render();
+    setStatus('Loaded: ' + state.structure.name);
+  } catch (e) {
+    setStatus('Error loading state: ' + e.message);
+  }
+}
+
+function setStatus(msg) { $('status-bar').textContent = msg; }
+
+// ── Render UI ──
+function render() {
+  if (!state) return;
+
+  // Header
+  const info = state.audio_info;
+  $('header-info').innerHTML =
+    `<span>${info.path.split(/[\\/]/).pop()}</span>` +
+    `<span>Structure: ${state.structure.name}</span>` +
+    `<span>${formatDur(state.target_duration)} target</span>` +
+    `<span>${info.tempo_bpm} BPM</span>`;
+
+  // Output name
+  $('output-name').value = state.output_path;
+
+  // Timeline
+  renderTimeline();
+
+  // Update detail if something is selected
+  if (selectedIdx !== null && selectedIdx < state.sections.length) {
+    renderDetail(selectedIdx);
+  }
+}
+
+function renderTimeline() {
+  const tl = $('timeline');
+  tl.innerHTML = '';
+  const totalDur = state.sections.reduce((s, sec) => s + sec.actual_duration, 0);
+
+  state.sections.forEach((sec, i) => {
+    const block = document.createElement('div');
+    const widthPct = (sec.actual_duration / totalDur) * 100;
+    block.className = `section-block energy-${sec.segment.energy_tier}`;
+    if (i === selectedIdx) block.classList.add('selected');
+
+    block.style.flex = `0 0 ${Math.max(widthPct, 3)}%`;
+
+    const isAnchor = sec.role.startsWith('intro') || sec.role.startsWith('outro');
+    block.draggable = !isAnchor;
+    block.dataset.idx = i;
+
+    block.innerHTML = `
+      <div class="label">${sec.role}</div>
+      <canvas class="waveform-mini" id="wf-${i}"></canvas>
+      <div class="meta">
+        <span>${sec.segment.energy_tier}/${sec.segment.trend}</span>
+        <span>${sec.actual_duration.toFixed(1)}s</span>
+      </div>
+    `;
+
+    block.addEventListener('click', () => selectSection(i));
+
+    // Drag events (non-anchor only)
+    if (!isAnchor) {
+      block.addEventListener('dragstart', onDragStart);
+      block.addEventListener('dragend', onDragEnd);
+    }
+    block.addEventListener('dragover', onDragOver);
+    block.addEventListener('dragleave', onDragLeave);
+    block.addEventListener('drop', onDrop);
+
+    tl.appendChild(block);
+
+    // Load mini waveform
+    loadMiniWaveform(i, sec);
+  });
+}
+
+async function loadMiniWaveform(idx, sec) {
+  const canvas = document.getElementById(`wf-${idx}`);
+  if (!canvas) return;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const w = Math.max(Math.floor(rect.width), 30);
+  canvas.width = w;
+  canvas.height = 50;
+
+  try {
+    const resp = await fetch(
+      `/api/waveform?start=${sec.segment.source_start}&end=${sec.segment.source_end}&width=${w}`
+    );
+    const data = await resp.json();
+    drawWaveform(canvas, data.peaks, getEnergyColor(sec.segment.energy_tier));
+  } catch (e) {
+    // silently ignore waveform load errors
+  }
+}
+
+function drawWaveform(canvas, peaks, color) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  if (!peaks || peaks.length === 0) return;
+
+  ctx.fillStyle = color;
+  const barW = Math.max(w / peaks.length, 1);
+  for (let i = 0; i < peaks.length; i++) {
+    const barH = Math.max(peaks[i] * h * 0.9, 1);
+    const x = (i / peaks.length) * w;
+    ctx.fillRect(x, (h - barH) / 2, barW - 0.5, barH);
+  }
+}
+
+function getEnergyColor(tier) {
+  return {
+    low: '#4a90d9',
+    mid: '#4ad99a',
+    high: '#d94a5a',
+  }[tier] || '#999';
+}
+
+function getEnergyBg(energy) {
+  return {
+    low: 'energy-low',
+    mid: 'energy-mid',
+    high: 'energy-high',
+    rising: 'energy-rising',
+    falling: 'energy-falling',
+  }[energy] || 'energy-mid';
+}
+
+// ── Section Selection & Detail ──
+function selectSection(idx) {
+  selectedIdx = idx;
+  // Update selection visuals
+  document.querySelectorAll('.section-block').forEach((b, i) => {
+    b.classList.toggle('selected', i === idx);
+  });
+  $('detail-panel').classList.add('visible');
+  renderDetail(idx);
+}
+
+function renderDetail(idx) {
+  const sec = state.sections[idx];
+  $('detail-role').textContent = sec.role;
+  $('detail-score').textContent = `score: ${sec.score.toFixed(3)}`;
+
+  // Breakdown
+  const bd = sec.score_breakdown;
+  $('detail-breakdown').innerHTML = `
+    <span class="lbl">energy_fit:</span><span class="val">${bd.energy_fit.toFixed(3)}</span>
+    <span class="lbl">variety:</span><span class="val">${bd.variety.toFixed(3)}</span>
+    <span class="lbl">duration_fit:</span><span class="val">${bd.duration_fit.toFixed(3)}</span>
+    <span class="lbl">temporal_fit:</span><span class="val">${bd.temporal_fit.toFixed(3)}</span>
+    <span class="lbl">transition:</span><span class="val">${bd.transition_score.toFixed(3)}</span>
+  `;
+
+  // Duration
+  $('detail-duration').value = sec.actual_duration.toFixed(1);
+  $('detail-dur-info').textContent =
+    `(target: ${sec.target_duration.toFixed(1)}s, segment: ${sec.segment.duration.toFixed(1)}s)`;
+
+  // Detail waveform (simple canvas, same as mini but larger)
+  loadDetailWaveform(sec);
+
+  // Candidates
+  renderCandidates(idx, sec);
+}
+
+async function loadDetailWaveform(sec) {
+  const container = $('detail-waveform');
+  const w = container.clientWidth || 600;
+  const h = 80;
+  container.innerHTML = `<canvas width="${w}" height="${h}" style="width:100%;height:100%"></canvas>`;
+  const canvas = container.querySelector('canvas');
+  canvas.width = w;
+  canvas.height = h;
+
+  try {
+    const resp = await fetch(
+      `/api/waveform?start=${sec.segment.source_start}&end=${sec.segment.source_end}&width=${w}`
+    );
+    const data = await resp.json();
+    drawWaveform(canvas, data.peaks, getEnergyColor(sec.segment.energy_tier));
+  } catch (e) { /* ignore */ }
+}
+
+function renderCandidates(sectionIdx, sec) {
+  const list = $('candidate-list');
+  list.innerHTML = '';
+
+  const candidates = sec.candidates || [];
+  candidates.forEach((cand, rank) => {
+    const isCurrent = cand.segment.index === sec.segment.index;
+    const row = document.createElement('div');
+    row.className = 'candidate-row' + (isCurrent ? ' current' : '');
+
+    const bd = cand.score_breakdown;
+    row.innerHTML = `
+      <span class="rank">${rank + 1}.</span>
+      <span class="seg-info">
+        seg[${cand.segment.index}]
+        <span class="tier-trend">${cand.segment.energy_tier}/${cand.segment.trend}</span>
+        ${formatTime(cand.segment.source_start)}-${formatTime(cand.segment.source_end)}
+        (${cand.segment.duration.toFixed(1)}s)
+      </span>
+      <span class="cscore">${cand.score.toFixed(3)}</span>
+      <button class="preview-btn" title="Preview this segment">&#9654;</button>
+      ${isCurrent ? '<span style="color:#4ad99a;font-size:0.75rem">current</span>' :
+        `<button class="use-btn" title="Use this segment">Use</button>`}
+    `;
+
+    // Preview button
+    row.querySelector('.preview-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      playAudioSlice(cand.segment.source_start, cand.segment.source_end);
+    });
+
+    // Use button
+    const useBtn = row.querySelector('.use-btn');
+    if (useBtn) {
+      useBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        swapCandidate(sectionIdx, cand.segment.index);
+      });
+    }
+
+    list.appendChild(row);
+  });
+
+  if (candidates.length === 0) {
+    list.innerHTML = '<div style="color:#666;padding:0.5rem">No candidates available</div>';
+  }
+}
+
+// ── Actions ──
+function swapCandidate(sectionIdx, newSegIdx) {
+  const sec = state.sections[sectionIdx];
+  sec.segment = state.segments.find(s => s.index === newSegIdx) || sec.segment;
+  // Find candidate score info
+  const cand = (sec.candidates || []).find(c => c.segment.index === newSegIdx);
+  if (cand) {
+    sec.score = cand.score;
+    sec.score_breakdown = cand.score_breakdown;
+  }
+  render();
+  setStatus(`Swapped ${sec.role} to segment ${newSegIdx} — click Render to apply`);
+}
+
+$('detail-duration').addEventListener('change', () => {
+  if (selectedIdx === null) return;
+  const sec = state.sections[selectedIdx];
+  const val = parseFloat($('detail-duration').value);
+  if (!isNaN(val) && val > 0) {
+    sec.actual_duration = Math.min(val, sec.segment.duration);
+    render();
+    setStatus(`Updated ${sec.role} duration to ${sec.actual_duration.toFixed(1)}s — click Render to apply`);
+  }
+});
+
+$('btn-render').addEventListener('click', async () => {
+  setStatus('Rendering...');
+  $('btn-render').disabled = true;
+
+  const sections = state.sections.map(sec => ({
+    role: sec.role,
+    segment_index: sec.segment.index,
+    actual_duration: sec.actual_duration,
+  }));
+
+  try {
+    // First update the arrangement
+    let resp = await fetch('/api/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sections,
+        output_path: $('output-name').value,
+      }),
+    });
+    state = await resp.json();
+
+    // Then render
+    resp = await fetch('/api/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        output_path: $('output-name').value,
+      }),
+    });
+    const result = await resp.json();
+    state = result;
+    renderedBuffer = null; // invalidate cached playback buffer
+    render();
+    const dur = result.output_duration ? ` (${formatDur(result.output_duration)})` : '';
+    setStatus(`Rendered successfully${dur}`);
+  } catch (e) {
+    setStatus('Render error: ' + e.message);
+  } finally {
+    $('btn-render').disabled = false;
+  }
+});
+
+// ── Load EDL ──
+$('btn-load-edl').addEventListener('click', () => {
+  $('edl-file-input').click();
+});
+
+$('edl-file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+
+  setStatus('Loading EDL...');
+  try {
+    const text = await file.text();
+    const edl = JSON.parse(text);
+
+    const resp = await fetch('/api/load-edl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ edl }),
+    });
+    const result = await resp.json();
+    if (result.error) {
+      setStatus('EDL load error: ' + result.error);
+      return;
+    }
+    state = result;
+    selectedIdx = null;
+    $('detail-panel').classList.remove('visible');
+    renderedBuffer = null;
+    render();
+    setStatus(`Loaded EDL: ${edl.structure?.name || 'unknown'} (${state.sections.length} sections)`);
+  } catch (err) {
+    setStatus('EDL load error: ' + err.message);
+  }
+});
+
+// ── Audio Playback ──
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+async function playAudioSlice(start, end) {
+  stopAll();
+  setStatus(`Playing ${formatTime(start)} - ${formatTime(end)}...`);
+
+  try {
+    const ctx = getAudioCtx();
+    const resp = await fetch(`/api/audio?start=${start}&end=${end}`);
+    const arrayBuf = await resp.arrayBuffer();
+    const audioBuf = await ctx.decodeAudioData(arrayBuf);
+
+    currentSource = ctx.createBufferSource();
+    currentSource.buffer = audioBuf;
+    currentSource.connect(ctx.destination);
+    currentSource.onended = () => { currentSource = null; setStatus('Ready'); };
+    currentSource.start();
+  } catch (e) {
+    setStatus('Playback error: ' + e.message);
+  }
+}
+
+$('btn-play-section').addEventListener('click', () => {
+  if (selectedIdx === null) return;
+  const sec = state.sections[selectedIdx];
+  const end = sec.segment.source_start + sec.actual_duration;
+  playAudioSlice(sec.segment.source_start, Math.min(end, sec.segment.source_end));
+});
+
+$('btn-pause-section').addEventListener('click', stopAll);
+
+$('btn-play-all').addEventListener('click', async () => {
+  stopAll();
+  setStatus('Loading rendered output...');
+
+  try {
+    const ctx = getAudioCtx();
+    if (!renderedBuffer) {
+      const resp = await fetch('/api/rendered');
+      if (!resp.ok) {
+        setStatus('No rendered file — click Render first');
+        return;
+      }
+      const arrayBuf = await resp.arrayBuffer();
+      renderedBuffer = await ctx.decodeAudioData(arrayBuf);
+    }
+
+    currentSource = ctx.createBufferSource();
+    currentSource.buffer = renderedBuffer;
+    currentSource.connect(ctx.destination);
+    renderedStartTime = ctx.currentTime;
+    renderedPlaying = true;
+    currentSource.onended = () => {
+      renderedPlaying = false;
+      currentSource = null;
+      setStatus('Ready');
+    };
+    currentSource.start();
+    setStatus('Playing rendered output...');
+  } catch (e) {
+    setStatus('Playback error: ' + e.message);
+  }
+});
+
+$('btn-stop').addEventListener('click', stopAll);
+
+function stopAll() {
+  if (currentSource) {
+    try { currentSource.stop(); } catch (e) { /* ignore */ }
+    currentSource = null;
+  }
+  renderedPlaying = false;
+  if (playAllAnimFrame) {
+    cancelAnimationFrame(playAllAnimFrame);
+    playAllAnimFrame = null;
+  }
+  setStatus('Ready');
+}
+
+// ── Drag & Drop Reorder ──
+let dragIdx = null;
+
+function onDragStart(e) {
+  dragIdx = parseInt(e.target.closest('.section-block').dataset.idx);
+  e.target.closest('.section-block').classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragEnd(e) {
+  e.target.closest('.section-block').classList.remove('dragging');
+  document.querySelectorAll('.section-block').forEach(b => b.classList.remove('drag-over'));
+  dragIdx = null;
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  const block = e.target.closest('.section-block');
+  if (!block) return;
+  const targetIdx = parseInt(block.dataset.idx);
+  const targetSec = state.sections[targetIdx];
+  // Don't allow dropping onto anchored sections
+  if (targetSec.role.startsWith('intro') || targetSec.role.startsWith('outro')) return;
+  block.classList.add('drag-over');
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function onDragLeave(e) {
+  const block = e.target.closest('.section-block');
+  if (block) block.classList.remove('drag-over');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  const block = e.target.closest('.section-block');
+  if (!block || dragIdx === null) return;
+  const targetIdx = parseInt(block.dataset.idx);
+  if (dragIdx === targetIdx) return;
+
+  // Swap sections
+  const moved = state.sections.splice(dragIdx, 1)[0];
+  state.sections.splice(targetIdx, 0, moved);
+
+  // Update selected index
+  if (selectedIdx === dragIdx) selectedIdx = targetIdx;
+  else if (selectedIdx !== null) {
+    if (dragIdx < selectedIdx && targetIdx >= selectedIdx) selectedIdx--;
+    else if (dragIdx > selectedIdx && targetIdx <= selectedIdx) selectedIdx++;
+  }
+
+  render();
+  setStatus(`Moved ${moved.role} — click Render to apply`);
+}
+
+// ── Utilities ──
+function formatDur(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = (secs % 60).toFixed(1);
+  return `${m}:${s.padStart(4, '0')}`;
+}
+
+// ── Start ──
+init();
+</script>
+</body>
+</html>

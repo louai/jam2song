@@ -1,0 +1,14 @@
+{
+  "name": "ambient_drift",
+  "description": "Low-energy atmospheric flow — textures and mood, no peaks",
+  "sections": [
+    {"role": "intro",     "energy": "low",     "relative_duration": 1.0},
+    {"role": "texture_1", "energy": "low",     "relative_duration": 1.5},
+    {"role": "drift_1",   "energy": "mid",     "relative_duration": 1.5},
+    {"role": "texture_2", "energy": "low",     "relative_duration": 1.5, "similar_to": "texture_1"},
+    {"role": "drift_2",   "energy": "mid",     "relative_duration": 1.5, "similar_to": "drift_1"},
+    {"role": "shift",     "energy": "mid",     "relative_duration": 1.2},
+    {"role": "settle",    "energy": "low",     "relative_duration": 1.0},
+    {"role": "outro",     "energy": "falling", "relative_duration": 0.8}
+  ]
+}

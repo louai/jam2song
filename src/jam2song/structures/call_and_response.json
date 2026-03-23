@@ -1,0 +1,14 @@
+{
+  "name": "call_and_response",
+  "description": "Alternating contrasting themes in dialogue, building to resolution",
+  "sections": [
+    {"role": "intro",      "energy": "low",     "relative_duration": 0.8},
+    {"role": "call_1",     "energy": "mid",     "relative_duration": 1.5},
+    {"role": "response_1", "energy": "high",    "relative_duration": 1.5},
+    {"role": "call_2",     "energy": "mid",     "relative_duration": 1.5, "similar_to": "call_1"},
+    {"role": "response_2", "energy": "high",    "relative_duration": 1.5, "similar_to": "response_1"},
+    {"role": "bridge",     "energy": "rising",  "relative_duration": 1.0},
+    {"role": "resolution", "energy": "high",    "relative_duration": 1.8},
+    {"role": "outro",      "energy": "falling", "relative_duration": 0.8}
+  ]
+}

@@ -298,3 +298,29 @@ def test_transition_high_to_low_prefers_lower_energy():
     plan = arrange(segs, dist, structure, _make_audio_info(200.0), 210.0, _make_render_params())
     # breakdown should pick seg1 (0.1 energy) over seg2 (0.4 energy) — greater contrast
     assert plan.arranged_sections[1].segment.index == 1
+
+
+def test_candidates_per_role_populated():
+    """arrange() should populate candidates_per_role with all scored candidates per role."""
+    segs = [
+        _make_segment(0, energy_tier="low", mean_energy=0.1, source_start=0.0),
+        _make_segment(1, energy_tier="mid", mean_energy=0.5, source_start=50.0),
+        _make_segment(2, energy_tier="high", mean_energy=0.9, source_start=100.0),
+    ]
+    dist = _make_dist_matrix(segs)
+    structure = _simple_structure([("intro", "low"), ("verse", "mid"), ("drop", "high")])
+    plan = arrange(segs, dist, structure, _make_audio_info(200.0), 90.0, _make_render_params())
+
+    # Every role should have candidates
+    for spec in structure.sections:
+        assert spec.role in plan.candidates_per_role
+        candidates = plan.candidates_per_role[spec.role]
+        assert len(candidates) > 0
+        # Each candidate is (segment_index, score, ScoreBreakdown)
+        for seg_idx, score, breakdown in candidates:
+            assert isinstance(seg_idx, int)
+            assert isinstance(score, float)
+            assert hasattr(breakdown, 'energy_fit')
+        # Candidates sorted by score descending
+        scores = [sc for _, sc, _ in candidates]
+        assert scores == sorted(scores, reverse=True)

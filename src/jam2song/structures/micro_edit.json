@@ -1,0 +1,10 @@
+{
+  "name": "micro_edit",
+  "description": "Ultra-short essence capture — hook, peak, breath, out",
+  "sections": [
+    {"role": "hook",   "energy": "mid",     "relative_duration": 1.5},
+    {"role": "peak",   "energy": "high",    "relative_duration": 2.0},
+    {"role": "breath", "energy": "low",     "relative_duration": 1.0},
+    {"role": "exit",   "energy": "falling", "relative_duration": 0.8}
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "slow_burn",
+  "description": "Single ascending arc — gradual build to one climax, no breakdowns",
+  "sections": [
+    {"role": "intro",   "energy": "low",     "relative_duration": 0.8},
+    {"role": "simmer",  "energy": "low",     "relative_duration": 1.0},
+    {"role": "warming", "energy": "mid",     "relative_duration": 1.2},
+    {"role": "groove",  "energy": "mid",     "relative_duration": 1.5},
+    {"role": "build",   "energy": "rising",  "relative_duration": 1.5},
+    {"role": "peak",    "energy": "high",    "relative_duration": 1.5},
+    {"role": "climax",  "energy": "high",    "relative_duration": 2.0, "similar_to": "peak"},
+    {"role": "outro",   "energy": "falling", "relative_duration": 0.8}
+  ]
+}

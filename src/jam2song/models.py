@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     import numpy as np
@@ -84,6 +84,8 @@ class SongPlan:
     target_duration: float
     arranged_sections: list[ArrangedSection]
     render_params: RenderParams
+    # Maps role → list of (segment_index, score, ScoreBreakdown), sorted by score desc.
+    candidates_per_role: dict[str, list[tuple[int, float, Any]]] = field(default_factory=dict)
 
 
 @dataclass
